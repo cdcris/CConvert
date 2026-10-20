@@ -52,12 +52,8 @@ class ImageConverterApp(tk.Tk):
         self.after(100, self._read_worker_messages)
 
     def _build_ui(self):
-        shell = ttk.Frame(self)
-        shell.pack(fill="both", expand=True)
-        self._build_sidebar(shell)
-
-        main = ttk.Frame(shell)
-        main.pack(side="left", fill="both", expand=True)
+        main = ttk.Frame(self)
+        main.pack(fill="both", expand=True)
         self._build_topbar(main)
 
         content = ttk.Frame(main, padding=(26, 22))
@@ -74,40 +70,6 @@ class ImageConverterApp(tk.Tk):
             fg=self.c["muted"], padx=22, pady=8
         )
         footer.pack(fill="x", side="bottom")
-
-    def _build_sidebar(self, parent):
-        side = ttk.Frame(parent, style="Sidebar.TFrame", width=225)
-        side.pack(side="left", fill="y")
-        side.pack_propagate(False)
-        tk.Label(
-            side, text="IMAGE CONVERTER", bg=self.c["sidebar"], fg="white",
-            anchor="w", padx=20, pady=22, font=("Segoe UI", 13, "bold")
-        ).pack(fill="x")
-        tk.Label(
-            side, text="THREE EASY STEPS", bg=self.c["sidebar"], fg=self.c["muted"],
-            anchor="w", padx=20, pady=10, font=("Segoe UI", 8, "bold")
-        ).pack(fill="x", pady=(8, 0))
-        steps = [
-            ("1", "Add your images", "Browse for files or a folder"),
-            ("2", "Choose formats", "PNG, JPG, WEBP, or ICO"),
-            ("3", "Convert images", "One click does the rest"),
-        ]
-        for number, title, detail in steps:
-            row = tk.Frame(side, bg=self.c["sidebar"])
-            row.pack(fill="x", padx=18, pady=10)
-            tk.Label(
-                row, text=number, bg=self.c["primary"], fg="white", width=2,
-                font=("Segoe UI", 9, "bold"), padx=2, pady=4
-            ).pack(side="left", anchor="n")
-            text = tk.Frame(row, bg=self.c["sidebar"])
-            text.pack(side="left", padx=10)
-            tk.Label(text, text=title, bg=self.c["sidebar"], fg=self.c["text"], anchor="w").pack(fill="x")
-            tk.Label(text, text=detail, bg=self.c["sidebar"], fg=self.c["muted"], anchor="w", font=("Segoe UI", 8)).pack(fill="x")
-        tk.Label(
-            side, text="Convert every selected image\nto one or more formats.",
-            bg=self.c["sidebar"], fg=self.c["muted"], justify="left", anchor="w",
-            padx=20, pady=20, font=("Segoe UI", 9)
-        ).pack(side="bottom", fill="x")
 
     def _build_topbar(self, parent):
         top = tk.Frame(parent, bg=self.c["sidebar"], height=66)
@@ -137,7 +99,7 @@ class ImageConverterApp(tk.Tk):
         source_panel.grid(row=0, column=0, sticky="ew")
         source_panel.columnconfigure(0, weight=1)
         tk.Label(
-            source_panel, text="Choose your images", bg=self.c["card"],
+            source_panel, text="1. Add your images", bg=self.c["card"],
             fg=self.c["text"], font=("Segoe UI", 13, "bold"), pady=11
         ).grid(row=0, column=0)
         tk.Label(
@@ -216,8 +178,12 @@ class ImageConverterApp(tk.Tk):
             anchor="w", padx=12, pady=9, font=("Segoe UI", 10)
         ).grid(row=0, column=0, sticky="ew")
 
+        tk.Label(
+            card, text="2. Choose formats", bg=self.c["card"], fg=self.c["text"],
+            font=("Segoe UI", 10, "bold"),
+        ).grid(row=2, column=0, sticky="w", pady=(0, 5))
         format_row = tk.Frame(card, bg=self.c["card"])
-        format_row.grid(row=2, column=0, sticky="w", pady=(0, 12))
+        format_row.grid(row=3, column=0, sticky="w", pady=(0, 12))
         tk.Label(
             format_row, text="OUTPUT FORMATS", bg=self.c["card"], fg=self.c["muted"],
             font=("Segoe UI", 8, "bold")
@@ -232,7 +198,7 @@ class ImageConverterApp(tk.Tk):
             ).pack(side="left")
 
         options_row = tk.Frame(card, bg=self.c["card"])
-        options_row.grid(row=3, column=0, sticky="w", pady=(0, 12))
+        options_row.grid(row=4, column=0, sticky="w", pady=(0, 12))
         tk.Checkbutton(
             options_row, text="Skip existing files", variable=self.skip_existing,
             bg=self.c["card"], fg=self.c["text"], activebackground=self.c["card"],
@@ -250,8 +216,12 @@ class ImageConverterApp(tk.Tk):
             insertbackground=self.c["text"], relief="flat",
         ).pack(side="left")
 
+        ttk.Label(
+            card, text="3. Convert images", style="Card.TLabel",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(row=5, column=0, sticky="w", pady=(0, 5))
         action_row = ttk.Frame(card, style="Card.TFrame")
-        action_row.grid(row=4, column=0, sticky="ew")
+        action_row.grid(row=6, column=0, sticky="ew")
         action_row.columnconfigure(0, weight=1)
         self.progress = ttk.Progressbar(action_row, mode="determinate", maximum=100)
         self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 14))
