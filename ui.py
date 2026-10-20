@@ -56,7 +56,7 @@ class ImageConverterApp(tk.Tk):
         main.pack(fill="both", expand=True)
         self._build_topbar(main)
 
-        content = ttk.Frame(main, padding=(26, 22))
+        content = ttk.Frame(main, padding=(26, 12))
         content.pack(fill="both", expand=True)
         content.columnconfigure(0, weight=1)
         content.rowconfigure(1, weight=1)
@@ -88,8 +88,8 @@ class ImageConverterApp(tk.Tk):
         return ttk.Frame(parent, style="Card.TFrame", padding=padding)
 
     def _build_source_card(self, parent):
-        card = self._card(parent)
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
+        card = self._card(parent, (12, 8))
+        card.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         card.columnconfigure(0, weight=1)
 
         source_panel = tk.Frame(
@@ -100,14 +100,14 @@ class ImageConverterApp(tk.Tk):
         source_panel.columnconfigure(0, weight=1)
         tk.Label(
             source_panel, text="1. Add your images", bg=self.c["card"],
-            fg=self.c["text"], font=("Segoe UI", 13, "bold"), pady=11
+            fg=self.c["text"], font=("Segoe UI", 11, "bold"), pady=4
         ).grid(row=0, column=0)
         tk.Label(
             source_panel, text="PNG, JPG, WebP, ICO, GIF, BMP or TIFF", bg=self.c["card"], fg=self.c["muted"],
-            font=("Segoe UI", 9), pady=2
+            font=("Segoe UI", 8), pady=0
         ).grid(row=1, column=0)
         buttons = tk.Frame(source_panel, bg=self.c["card"])
-        buttons.grid(row=2, column=0, pady=(8, 13))
+        buttons.grid(row=2, column=0, pady=(4, 5))
         ttk.Button(buttons, text="Browse images", style="Primary.TButton", command=self.browse_images).pack(side="left")
         ttk.Button(buttons, text="Choose folder", style="Light.TButton", command=self.browse_folder).pack(side="left", padx=8)
 
@@ -166,16 +166,16 @@ class ImageConverterApp(tk.Tk):
         self.next_page_button.grid(row=0, column=2)
 
     def _build_output_card(self, parent):
-        card = self._card(parent, (18, 14))
+        card = self._card(parent, (14, 8))
         card.grid(row=2, column=0, sticky="ew")
         card.columnconfigure(0, weight=1)
         ttk.Label(card, text="Results are saved automatically", style="Card.TLabel", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w")
         path_row = tk.Frame(card, bg=self.c["card"])
-        path_row.grid(row=1, column=0, sticky="ew", pady=(7, 12))
+        path_row.grid(row=1, column=0, sticky="ew", pady=(4, 6))
         path_row.columnconfigure(0, weight=1)
         tk.Label(
             path_row, textvariable=self.output_dir, bg=self.c["input"], fg=self.c["muted"],
-            anchor="w", padx=12, pady=9, font=("Segoe UI", 10)
+            anchor="w", padx=12, pady=5, font=("Segoe UI", 9)
         ).grid(row=0, column=0, sticky="ew")
 
         tk.Label(
@@ -183,7 +183,7 @@ class ImageConverterApp(tk.Tk):
             font=("Segoe UI", 10, "bold"),
         ).grid(row=2, column=0, sticky="w", pady=(0, 5))
         format_row = tk.Frame(card, bg=self.c["card"])
-        format_row.grid(row=3, column=0, sticky="w", pady=(0, 12))
+        format_row.grid(row=3, column=0, sticky="w", pady=(0, 5))
         tk.Label(
             format_row, text="OUTPUT FORMATS", bg=self.c["card"], fg=self.c["muted"],
             font=("Segoe UI", 8, "bold")
@@ -198,7 +198,7 @@ class ImageConverterApp(tk.Tk):
             ).pack(side="left")
 
         options_row = tk.Frame(card, bg=self.c["card"])
-        options_row.grid(row=4, column=0, sticky="w", pady=(0, 12))
+        options_row.grid(row=4, column=0, sticky="w", pady=(0, 5))
         tk.Checkbutton(
             options_row, text="Skip existing files", variable=self.skip_existing,
             bg=self.c["card"], fg=self.c["text"], activebackground=self.c["card"],
@@ -219,7 +219,7 @@ class ImageConverterApp(tk.Tk):
         ttk.Label(
             card, text="3. Convert images", style="Card.TLabel",
             font=("Segoe UI", 10, "bold"),
-        ).grid(row=5, column=0, sticky="w", pady=(0, 5))
+        ).grid(row=5, column=0, sticky="w", pady=(0, 2))
         action_row = ttk.Frame(card, style="Card.TFrame")
         action_row.grid(row=6, column=0, sticky="ew")
         action_row.columnconfigure(0, weight=1)
