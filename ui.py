@@ -42,9 +42,9 @@ class ImageConverterApp(tk.Tk):
         default_workers = min(4, max(1, (os.cpu_count() or 2) - 1))
         self.worker_count = tk.IntVar(value=default_workers)
         self.skip_existing = tk.BooleanVar(value=True)
-        self.preview_photo: ImageTk.PhotoImage | None = None
         self.file_thumbnails: dict[str, ImageTk.PhotoImage] = {}
         self.thumbnail_labels: dict[str, tk.Label] = {}
+        self.selected_images: set[str] = set()
         self.work_queue: queue.Queue = queue.Queue()
         self.cancel_event = threading.Event()
         self.is_working = False
@@ -128,19 +128,13 @@ class ImageConverterApp(tk.Tk):
     def _build_source_card(self, parent):
         card = self._card(parent)
         card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        card.columnconfigure(1, weight=1)
-
-        self.preview = tk.Label(
-            card, text="IMAGE", bg=self.c["input"], fg=self.c["muted"],
-            width=12, height=5, font=("Segoe UI", 9, "bold")
-        )
-        self.preview.grid(row=0, column=0, rowspan=2, sticky="ns", padx=(0, 18))
+        card.columnconfigure(0, weight=1)
 
         source_panel = tk.Frame(
             card, bg=self.c["card"], highlightbackground=self.c["border"],
             highlightcolor=self.c["border"], highlightthickness=1
         )
-        source_panel.grid(row=0, column=1, sticky="ew")
+        source_panel.grid(row=0, column=0, sticky="ew")
         source_panel.columnconfigure(0, weight=1)
         tk.Label(
             source_panel, text="Choose your images", bg=self.c["card"],
@@ -168,27 +162,20 @@ class ImageConverterApp(tk.Tk):
 
         table_box = ttk.Frame(card, style="Card.TFrame")
         table_box.grid(row=1, column=0, sticky="nsew")
-        self.file_list = ttk.Treeview(
-            table_box, columns=("number", "name", "size", "view"), show="headings", style="Files.Treeview",
-            selectmode="extended"
+        self.image_canvas = tk.Canvas(
+            table_box, bg=self.c["card"], highlightthickness=0, borderwidth=0,
         )
-        self.file_list.heading("number", text="NO.", anchor="center")
-        self.file_list.heading("name", text="FILENAME", anchor="w")
-        self.file_list.heading("size", text="FILE SIZE", anchor="e")
-        self.file_list.heading("view", text="IMAGE VIEW", anchor="center")
-        self.file_list.column("number", width=65, minwidth=55, anchor="center", stretch=False)
-        self.file_list.column("name", width=390, minwidth=180, anchor="w")
-        self.file_list.column("size", width=120, minwidth=90, anchor="e", stretch=False)
-        self.file_list.column("view", width=130, minwidth=110, anchor="center", stretch=False)
-        self.file_list.tag_configure("empty", foreground=self.c["muted"])
-        scroll = ttk.Scrollbar(table_box, orient="vertical", command=self._scroll_file_list)
-        self.file_list.configure(yscrollcommand=scroll.set)
-        self.file_list.pack(side="left", fill="both", expand=True)
+        scroll = ttk.Scrollbar(table_box, orient="vertical", command=self.image_canvas.yview)
+        self.image_canvas.configure(yscrollcommand=scroll.set)
+        self.image_grid = tk.Frame(self.image_canvas, bg=self.c["card"])
+        self.image_grid_window = self.image_canvas.create_window(
+            (0, 0), window=self.image_grid, anchor="nw",
+        )
+        self.image_grid.bind("<Configure>", self._update_image_grid_scrollregion)
+        self.image_canvas.bind("<Configure>", self._resize_image_grid)
+        self.image_canvas.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
-        self.file_list.bind("<<TreeviewSelect>>", self._show_selected_preview)
-        self.file_list.bind("<Configure>", self._schedule_thumbnail_positions, add="+")
-        self.file_list.bind("<MouseWheel>", self._schedule_thumbnail_positions, add="+")
-        self.file_list.bind("<KeyRelease>", self._schedule_thumbnail_positions, add="+")
+        self.image_canvas.bind_all("<MouseWheel>", self._scroll_image_grid, add="+")
 
         pagination = ttk.Frame(card, style="Card.TFrame")
         pagination.grid(row=2, column=0, sticky="ew", pady=(10, 0))
@@ -327,48 +314,58 @@ class ImageConverterApp(tk.Tk):
             self.status.set("No new supported images were found.")
 
     def _refresh_file_list(self):
-        for label in self.thumbnail_labels.values():
-            label.destroy()
+        for child in self.image_grid.winfo_children():
+            child.destroy()
         self.file_thumbnails.clear()
         self.thumbnail_labels.clear()
-        self.file_list.delete(*self.file_list.get_children())
+        self.selected_images.clear()
         count = len(self.images)
         page_count = max(1, (count + IMAGES_PER_PAGE - 1) // IMAGES_PER_PAGE)
         self.current_page = min(self.current_page, page_count - 1)
         page_start = self.current_page * IMAGES_PER_PAGE
         page_end = min(page_start + IMAGES_PER_PAGE, count)
         displayed = self.images[page_start:page_end]
+        columns = 5
         for index, path in enumerate(displayed, start=page_start):
             try:
                 size = format_file_size(path.stat().st_size)
             except OSError:
                 size = "Unavailable"
-            self.file_list.insert(
-                "", "end", iid=str(index),
-                values=(index + 1, path.name, size, ""),
+            card = tk.Frame(
+                self.image_grid, bg=self.c["input"], highlightthickness=2,
+                highlightbackground=self.c["border"], cursor="hand2",
             )
+            card.grid(row=(index - page_start) // columns, column=(index - page_start) % columns,
+                      sticky="nsew", padx=6, pady=6)
+            card.configure(width=142, height=146)
+            card.grid_propagate(False)
             try:
                 with Image.open(path) as image:
-                    thumbnail = square_image(image, 30)
+                    thumbnail = square_image(image, 88)
                 photo = ImageTk.PhotoImage(thumbnail)
                 self.file_thumbnails[str(index)] = photo
                 label = tk.Label(
-                    self.file_list, image=photo, bg=self.c["input"],
-                    borderwidth=0, cursor="hand2",
+                    card, image=photo, bg=self.c["input"], borderwidth=0,
                 )
-                label.bind(
-                    "<Button-1>",
-                    lambda _event, item=str(index): self._select_thumbnail(item),
-                )
-                self.thumbnail_labels[str(index)] = label
+                label.pack(pady=(8, 5))
             except (OSError, UnidentifiedImageError):
-                pass
+                label = tk.Label(card, text="NO PREVIEW", bg=self.c["input"], fg=self.c["muted"],
+                                 width=12, height=5, font=("Segoe UI", 8, "bold"))
+                label.pack(pady=(8, 5))
+            name_label = tk.Label(card, text=path.name, bg=self.c["input"], fg=self.c["text"],
+                                  font=("Segoe UI", 8), wraplength=126, justify="center")
+            name_label.pack(fill="x", padx=5)
+            size_label = tk.Label(card, text=size, bg=self.c["input"], fg=self.c["muted"],
+                                  font=("Segoe UI", 7))
+            size_label.pack()
+            self.thumbnail_labels[str(index)] = card
+            for widget in (card, label, name_label, size_label):
+                widget.bind("<Button-1>", lambda _event, item=str(index): self._select_thumbnail(item))
+        for column in range(columns):
+            self.image_grid.columnconfigure(column, weight=1, uniform="image")
         if not count:
-            self.file_list.insert(
-                "", "end", iid="empty",
-                values=("", "No images selected", "", ""),
-                tags=("empty",),
-            )
+            tk.Label(self.image_grid, text="No images selected", bg=self.c["card"],
+                     fg=self.c["muted"], font=("Segoe UI", 10)).grid(row=0, column=0, padx=18, pady=24)
         summary = f"{count:,} image{'s' if count != 1 else ''} ready" if count else "No images selected"
         self.summary.set(summary)
         if count:
@@ -387,12 +384,8 @@ class ImageConverterApp(tk.Tk):
         self._update_generate_button()
         if count:
             first_item = str(page_start)
-            self.file_list.selection_set(first_item)
-            self._show_preview(self.images[page_start])
-            self.after_idle(self._position_file_thumbnails)
-        else:
-            self.preview.configure(image="", text="IMAGE", width=12, height=5)
-            self.preview_photo = None
+            self.selected_images.add(first_item)
+            self._update_image_selection()
 
     def _change_page(self, offset: int):
         page_count = max(
@@ -417,34 +410,33 @@ class ImageConverterApp(tk.Tk):
             self.page_loading.stop()
             self.page_loading.pack_forget()
 
-    def _scroll_file_list(self, *args):
-        self.file_list.yview(*args)
-        self.after_idle(self._position_file_thumbnails)
+    def _update_image_grid_scrollregion(self, _event=None):
+        self.image_canvas.configure(scrollregion=self.image_canvas.bbox("all"))
 
-    def _schedule_thumbnail_positions(self, _event=None):
-        self.after_idle(self._position_file_thumbnails)
+    def _resize_image_grid(self, event):
+        self.image_canvas.itemconfigure(self.image_grid_window, width=event.width)
 
-    def _position_file_thumbnails(self):
-        selected = set(self.file_list.selection())
-        for item, label in self.thumbnail_labels.items():
-            bounds = self.file_list.bbox(item, "view")
-            if not bounds:
-                label.place_forget()
-                continue
-            x, y, width, height = bounds
-            label.configure(bg=self.c["primary"] if item in selected else self.c["input"])
-            label.place(x=x, y=y, width=width, height=height)
+    def _scroll_image_grid(self, event):
+        if self.image_canvas.winfo_exists():
+            self.image_canvas.yview_scroll(int(-event.delta / 120), "units")
+            return "break"
+
+    def _update_image_selection(self):
+        for item, card in self.thumbnail_labels.items():
+            selected = item in self.selected_images
+            card.configure(highlightbackground=self.c["primary"] if selected else self.c["border"])
+            for child in card.winfo_children():
+                child.configure(bg=self.c["primary"] if selected else self.c["input"])
 
     def _select_thumbnail(self, item: str):
-        self.file_list.selection_set(item)
-        self.file_list.focus(item)
-        self._show_selected_preview()
+        if item in self.selected_images:
+            self.selected_images.remove(item)
+        else:
+            self.selected_images.add(item)
+        self._update_image_selection()
 
     def remove_selected(self):
-        selected = {
-            int(item) for item in self.file_list.selection()
-            if item.isdigit()
-        }
+        selected = {int(item) for item in self.selected_images if item.isdigit()}
         if not selected:
             self.status.set("Select an image in the list first.")
             return
@@ -462,22 +454,6 @@ class ImageConverterApp(tk.Tk):
         self.current_page = 0
         self._refresh_file_list()
         self.status.set("List cleared. Add another image when you are ready.")
-
-    def _show_selected_preview(self, _event=None):
-        selected = [item for item in self.file_list.selection() if item.isdigit()]
-        if selected:
-            self._show_preview(self.images[int(selected[0])])
-        self._position_file_thumbnails()
-
-    def _show_preview(self, path: Path):
-        try:
-            with Image.open(path) as image:
-                preview = square_image(image, 92)
-            self.preview_photo = ImageTk.PhotoImage(preview)
-            self.preview.configure(image=self.preview_photo, text="", width=92, height=92)
-        except (OSError, UnidentifiedImageError):
-            self.preview.configure(image="", text="NO PREVIEW", width=12, height=5)
-            self.preview_photo = None
 
     def _selected_formats(self) -> tuple[str, ...]:
         return tuple(
