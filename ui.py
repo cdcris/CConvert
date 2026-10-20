@@ -295,7 +295,7 @@ class ImageConverterApp(tk.Tk):
         page_start = self.current_page * IMAGES_PER_PAGE
         page_end = min(page_start + IMAGES_PER_PAGE, count)
         displayed = self.images[page_start:page_end]
-        columns = 5
+        columns = 10
         for index, path in enumerate(displayed, start=page_start):
             try:
                 size = format_file_size(path.stat().st_size)
@@ -307,11 +307,11 @@ class ImageConverterApp(tk.Tk):
             )
             card.grid(row=(index - page_start) // columns, column=(index - page_start) % columns,
                       sticky="nsew", padx=6, pady=6)
-            card.configure(width=142, height=146)
+            card.configure(width=76, height=112)
             card.grid_propagate(False)
             try:
                 with Image.open(path) as image:
-                    thumbnail = square_image(image, 88)
+                    thumbnail = square_image(image, 56)
                 photo = ImageTk.PhotoImage(thumbnail)
                 self.file_thumbnails[str(index)] = photo
                 label = tk.Label(
@@ -323,7 +323,7 @@ class ImageConverterApp(tk.Tk):
                                  width=12, height=5, font=("Segoe UI", 8, "bold"))
                 label.pack(pady=(8, 5))
             name_label = tk.Label(card, text=path.name, bg=self.c["input"], fg=self.c["text"],
-                                  font=("Segoe UI", 8), wraplength=126, justify="center")
+                                  font=("Segoe UI", 8), wraplength=68, justify="center")
             name_label.pack(fill="x", padx=5)
             size_label = tk.Label(card, text=size, bg=self.c["input"], fg=self.c["muted"],
                                   font=("Segoe UI", 7))
